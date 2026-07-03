@@ -6944,18 +6944,18 @@ function generateUserAuditText(user) {
     badgesReport += `  - OJO CLÍNICO (0 PTS) [Inactivo: ${exactsCount} exactos (Requisito: 3+)]\n`;
   }
   
-  if (winnerCount >= 12) {
-    badgesReport += `  - GANADOR FRECUENTE (+10 PTS) [Activo: ${winnerCount} aciertos (Requisito: 12+)]\n`;
+  if (winnerCount >= 7) {
+    badgesReport += `  - GANADOR FRECUENTE (+10 PTS) [Activo: ${winnerCount} aciertos (Requisito: 7+)]\n`;
     badgesPoints += 10;
   } else {
-    badgesReport += `  - GANADOR FRECUENTE (0 PTS) [Inactivo: ${winnerCount} aciertos (Requisito: 12+)]\n`;
+    badgesReport += `  - GANADOR FRECUENTE (0 PTS) [Inactivo: ${winnerCount} aciertos (Requisito: 7+)]\n`;
   }
   
-  if (predictionsCount >= 25) {
-    badgesReport += `  - PRONOSTICADOR ACTIVO (+5 PTS) [Activo: ${predictionsCount} pronósticos (Requisito: 25+)]\n`;
+  if (predictionsCount >= 12) {
+    badgesReport += `  - PRONOSTICADOR ACTIVO (+5 PTS) [Activo: ${predictionsCount} pronósticos (Requisito: 12+)]\n`;
     badgesPoints += 5;
   } else {
-    badgesReport += `  - PRONOSTICADOR ACTIVO (0 PTS) [Inactivo: ${predictionsCount} pronósticos (Requisito: 25+)]\n`;
+    badgesReport += `  - PRONOSTICADOR ACTIVO (0 PTS) [Inactivo: ${predictionsCount} pronósticos (Requisito: 12+)]\n`;
   }
   
   // Check El Vidente
