@@ -352,6 +352,49 @@ async function toggleTournamentFinished() {
   }
   if (STATE.tournamentFinished) {
     showToast("TORNEO DECLARADO FINALIZADO. ¡FIESTA DE PREMIACIÓN ACTIVADA!");
+    
+    // Enqueue final push notification to all regular users
+    if (supabaseClient) {
+      try {
+        const regularUsers = STATE.users.filter(u => !u.is_admin && !u.is_mock);
+        const pushQueue = regularUsers.map(u => ({
+          cedula: u.cedula,
+          type: 'ranking',
+          title: "🏆 ¡Torneo Finalizado!",
+          body: `Hola ${u.name.split(' ')[0]}. La Polla ha concluido. ¡Entra ya para ver tu posición final en la tabla y los ganadores!`,
+          tag: 'tournament-finished',
+          url: './',
+          priority: 2
+        }));
+        
+        if (pushQueue.length > 0) {
+          supabaseClient
+            .from('notification_queue')
+            .insert(pushQueue)
+            .then(({ error: insertErr }) => {
+              if (insertErr) {
+                console.error("Error inserting final notifications into queue:", insertErr);
+              } else {
+                console.log(`Successfully enqueued final notifications for ${pushQueue.length} users.`);
+                // Trigger send-push edge function to process the queue
+                const pushBase = `${supabaseUrl}/functions/v1`;
+                const pushHeaders = { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseKey}` };
+                fetch(`${pushBase}/send-push`, {
+                  method: "POST",
+                  headers: pushHeaders,
+                  body: JSON.stringify({ action: "process-queue" })
+                }).then(() => {
+                  console.log("Triggered process-queue for final notifications.");
+                }).catch(err => {
+                  console.error("Error triggering process-queue:", err);
+                });
+              }
+            });
+        }
+      } catch (err) {
+        console.error("Error enqueuing final notifications:", err);
+      }
+    }
   } else {
     showToast("ESTADO DEL TORNEO REESTABLECIDO A ACTIVO.");
   }
@@ -1161,7 +1204,7 @@ function recalculateAllPoints() {
       if (m104.extra_time_winner === 'home' || m104.penalties_winner === 'home') {
         actualChamp = m104.resolved_home_code;
         actualSubchamp = m104.resolved_away_code;
-      } else {
+      } else if (m104.extra_time_winner === 'away' || m104.penalties_winner === 'away') {
         actualChamp = m104.resolved_away_code;
         actualSubchamp = m104.resolved_home_code;
       }
@@ -1176,7 +1219,7 @@ function recalculateAllPoints() {
     } else {
       if (m103.extra_time_winner === 'home' || m103.penalties_winner === 'home') {
         actualThird = m103.resolved_home_code;
-      } else {
+      } else if (m103.extra_time_winner === 'away' || m103.penalties_winner === 'away') {
         actualThird = m103.resolved_away_code;
       }
     }
@@ -3783,9 +3826,9 @@ function renderDashboardView() {
   }
   
   if (checkTournamentFinished()) {
-    // Calculate rank (excluding the administrator)
+    // Calculate rank (excluding the administrator, fallback to local sort if rank is missing)
     const sorted = sortUsersLeaderboard(STATE.users.filter(u => u.cedula !== "V-12345678"));
-    const rank = sorted.findIndex(u => u.cedula === user.cedula) + 1;
+    const rank = user.rank || (sorted.findIndex(u => u.cedula === user.cedula) + 1);
     
     const card = document.createElement('div');
     card.id = 'dashboard-celebration-card';
@@ -4796,13 +4839,16 @@ function drawBracketLines() {
     const toMatch = STATE.matches.find(m => m.match_no === to);
     
     if (fromMatch && toMatch && fromMatch.home_score !== null && fromMatch.away_score !== null) {
-      const winnerCode = (fromMatch.home_score > fromMatch.away_score) 
-        ? fromMatch.resolved_home_code 
-        : (fromMatch.home_score < fromMatch.away_score 
-            ? fromMatch.resolved_away_code 
-            : (fromMatch.extra_time_winner === 'home' || fromMatch.penalties_winner === 'home' 
-                ? fromMatch.resolved_home_code 
-                : fromMatch.resolved_away_code));
+      let winnerCode = null;
+      if (fromMatch.home_score > fromMatch.away_score) {
+        winnerCode = fromMatch.resolved_home_code;
+      } else if (fromMatch.home_score < fromMatch.away_score) {
+        winnerCode = fromMatch.resolved_away_code;
+      } else if (fromMatch.extra_time_winner === 'home' || fromMatch.penalties_winner === 'home') {
+        winnerCode = fromMatch.resolved_home_code;
+      } else if (fromMatch.extra_time_winner === 'away' || fromMatch.penalties_winner === 'away') {
+        winnerCode = fromMatch.resolved_away_code;
+      }
       
       if (winnerCode && (toMatch.resolved_home_code === winnerCode || toMatch.resolved_away_code === winnerCode)) {
         isPathActive = true;
@@ -4887,13 +4933,25 @@ function renderBracketTreeView() {
     let homeClass = "";
     let awayClass = "";
     if (m.home_score !== null && m.away_score !== null) {
-      const winnerCode = (m.home_score > m.away_score) ? m.resolved_home_code : (m.home_score < m.away_score ? m.resolved_away_code : (m.extra_time_winner === 'home' || m.penalties_winner === 'home' ? m.resolved_home_code : m.resolved_away_code));
-      if (winnerCode === m.resolved_home_code) {
-        homeClass = "bracket-winner";
-        awayClass = "bracket-loser";
-      } else {
-        homeClass = "bracket-loser";
-        awayClass = "bracket-winner";
+      let winnerCode = null;
+      if (m.home_score > m.away_score) {
+        winnerCode = m.resolved_home_code;
+      } else if (m.home_score < m.away_score) {
+        winnerCode = m.resolved_away_code;
+      } else if (m.extra_time_winner === 'home' || m.penalties_winner === 'home') {
+        winnerCode = m.resolved_home_code;
+      } else if (m.extra_time_winner === 'away' || m.penalties_winner === 'away') {
+        winnerCode = m.resolved_away_code;
+      }
+      
+      if (winnerCode) {
+        if (winnerCode === m.resolved_home_code) {
+          homeClass = "bracket-winner";
+          awayClass = "bracket-loser";
+        } else if (winnerCode === m.resolved_away_code) {
+          homeClass = "bracket-loser";
+          awayClass = "bracket-winner";
+        }
       }
     }
     
@@ -6919,8 +6977,13 @@ function generateUserAuditText(user) {
       actualChamp = m104.resolved_away_code;
       actualSubchamp = m104.resolved_home_code;
     } else {
-      actualChamp = m104.extra_time_winner === 'home' ? m104.resolved_home_code : m104.resolved_away_code;
-      actualSubchamp = m104.extra_time_winner === 'home' ? m104.resolved_away_code : m104.resolved_home_code;
+      if (m104.extra_time_winner === 'home' || m104.penalties_winner === 'home') {
+        actualChamp = m104.resolved_home_code;
+        actualSubchamp = m104.resolved_away_code;
+      } else if (m104.extra_time_winner === 'away' || m104.penalties_winner === 'away') {
+        actualChamp = m104.resolved_away_code;
+        actualSubchamp = m104.resolved_home_code;
+      }
     }
   }
   if (m103 && m103.home_score !== null && m103.away_score !== null) {
@@ -6929,7 +6992,11 @@ function generateUserAuditText(user) {
     } else if (m103.home_score < m103.away_score) {
       actualThird = m103.resolved_away_code;
     } else {
-      actualThird = m103.extra_time_winner === 'home' ? m103.resolved_home_code : m103.resolved_away_code;
+      if (m103.extra_time_winner === 'home' || m103.penalties_winner === 'home') {
+        actualThird = m103.resolved_home_code;
+      } else if (m103.extra_time_winner === 'away' || m103.penalties_winner === 'away') {
+        actualThird = m103.resolved_away_code;
+      }
     }
   }
 
