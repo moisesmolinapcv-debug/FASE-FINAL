@@ -1667,7 +1667,7 @@ async function saveUserPrediction(matchNo, homeScoreVal, awayScoreVal, extraTime
   
   // Restrict to match range #73 to #104 for non-admin users
   const isAdminUser = STATE.currentUser && STATE.currentUser.is_admin;
-  if (!isAdminUser && (matchNo < 73 || matchNo > 104)) {
+  if (!isAdminUser && (matchNo < 89 || matchNo > 104)) {
     showToast("ESTE PARTIDO NO ESTÁ DISPONIBLE PARA PRONÓSTICOS.", "error");
     return;
   }
@@ -1840,7 +1840,7 @@ async function toggleWildcard(matchNo) {
   
   // Restrict to match range #73 to #104 for non-admin users (Knockout Stage)
   const isAdminUser = STATE.currentUser && STATE.currentUser.is_admin;
-  if (!isAdminUser && (matchNo < 73 || matchNo > 104)) {
+  if (!isAdminUser && (matchNo < 89 || matchNo > 104)) {
     showToast("ESTE PARTIDO NO ESTÁ DISPONIBLE PARA EL COMODÍN.", "error");
     return;
   }
@@ -1864,7 +1864,7 @@ async function toggleWildcard(matchNo) {
     // Count how many wildcards are already active (only on unlocked knockout matches)
     let activeCount = 0;
     STATE.matches.forEach(m => {
-      if (!isMatchLocked(m) && m.match_no >= 73) {
+      if (!isMatchLocked(m) && m.match_no >= 89) {
         const pred = STATE.currentUser.predictions[m.match_no];
         if (pred && pred.wildcard) {
           activeCount++;
@@ -2522,7 +2522,7 @@ function openTicketModal(user) {
   container.innerHTML = "";
   
   STATE.matches.forEach(m => {
-    if (m.match_no < 73 || m.match_no > 104) return;
+    if (m.match_no < 89 || m.match_no > 104) return;
     const pred = user.predictions[m.match_no];
     let predText = "Sin pronóstico";
     let wildcardHTML = "";
@@ -3612,7 +3612,7 @@ async function openVSModal(cedulaB) {
   container.innerHTML = "";
   
   const isAdminUser = STATE.currentUser && STATE.currentUser.is_admin;
-  const visibleMatches = STATE.matches.filter(m => !m.hidden && (isAdminUser || (m.match_no >= 73 && m.match_no <= 104)));
+  const visibleMatches = STATE.matches.filter(m => !m.hidden && (isAdminUser || (m.match_no >= 89 && m.match_no <= 104)));
   visibleMatches.forEach((m, index) => {
     const predA = userA.predictions[m.match_no];
     const predB = userB.predictions[m.match_no];
@@ -3995,7 +3995,7 @@ function renderMatchesView() {
   // Hide hidden matches for non-admin users and restrict user predictions list to range 73-104
   const isAdminUser = STATE.currentUser && STATE.currentUser.is_admin;
   if (!isAdminUser) {
-    filtered = filtered.filter(m => !m.hidden && m.match_no >= 73 && m.match_no <= 104);
+    filtered = filtered.filter(m => !m.hidden && m.match_no >= 89 && m.match_no <= 104);
   }
 
   if (activeMatchSubTab === 'group') {
@@ -4213,11 +4213,21 @@ function renderSpecialPredictionsView() {
   
   const videnteLocked = isVidentePredictionsLocked();
   
-  // Get all teams alphabetically sorted
+  // Get the 16 qualified teams from the R16 matches (to restrict selection options for El Vidente)
+  const activeTeamCodes = new Set();
+  STATE.matches.forEach(m => {
+    if (m.stage === 'R16') {
+      if (m.home_code) activeTeamCodes.add(m.home_code);
+      if (m.away_code) activeTeamCodes.add(m.away_code);
+    }
+  });
+
   const allTeamsList = [];
   Object.values(STATE.groups).forEach(teamList => {
     teamList.forEach(t => {
-      allTeamsList.push(t);
+      if (activeTeamCodes.has(t.id)) {
+        allTeamsList.push(t);
+      }
     });
   });
   allTeamsList.sort((a, b) => a.name.localeCompare(b.name));
@@ -4713,7 +4723,6 @@ function setBracketFilter(filter) {
 
 function applyBracketFilterEffects() {
   const columns = {
-    'R32': document.getElementById('col-R32'),
     'R16': document.getElementById('col-R16'),
     'QF': document.getElementById('col-QF'),
     'SF': document.getElementById('col-SF'),
@@ -4751,24 +4760,6 @@ function applyBracketFilterEffects() {
 }
 
 const bracketConnections = [
-  // R32 -> R16
-  { from: 73, to: 90 },
-  { from: 75, to: 90 },
-  { from: 74, to: 89 },
-  { from: 77, to: 89 },
-  { from: 81, to: 94 },
-  { from: 82, to: 94 },
-  { from: 83, to: 93 },
-  { from: 84, to: 93 },
-  { from: 76, to: 91 },
-  { from: 78, to: 91 },
-  { from: 79, to: 92 },
-  { from: 80, to: 92 },
-  { from: 85, to: 96 },
-  { from: 87, to: 96 },
-  { from: 86, to: 95 },
-  { from: 88, to: 95 },
-
   // R16 -> QF
   { from: 90, to: 97 },
   { from: 89, to: 97 },
@@ -4900,11 +4891,6 @@ function renderBracketTreeView() {
   resolveBrackets(STATE.matches);
   
   // Visually sort matches to make the tree layout symmetric and without line crossings
-  const r32Order = [74, 77, 73, 75, 83, 84, 81, 82, 76, 78, 79, 80, 86, 88, 85, 87];
-  const r32 = STATE.matches
-    .filter(m => m.stage === 'R32')
-    .sort((a, b) => r32Order.indexOf(a.match_no) - r32Order.indexOf(b.match_no));
-    
   const r16Order = [89, 90, 93, 94, 91, 92, 95, 96];
   const r16 = STATE.matches
     .filter(m => m.stage === 'R16')
@@ -5013,10 +4999,7 @@ function renderBracketTreeView() {
     `;
   };
   
-  const colR32 = document.createElement('div');
-  colR32.className = "bracket-column";
-  colR32.id = "col-R32";
-  colR32.innerHTML = `<div class="bracket-column-header">Dieciseisavos</div><div class="bracket-column-matches">` + r32.map(buildMatchNode).join('') + `</div>`;
+  
   
   const colR16 = document.createElement('div');
   colR16.className = "bracket-column";
@@ -5062,7 +5045,6 @@ function renderBracketTreeView() {
   }
   colFinal.innerHTML = finalHTML;
   
-  treeContainer.appendChild(colR32);
   treeContainer.appendChild(colR16);
   treeContainer.appendChild(colQF);
   treeContainer.appendChild(colSF);
@@ -6567,7 +6549,7 @@ function renderSharedTicketView(user) {
   container.appendChild(listCard);
   
   const listContainer = listCard.querySelector('#shared-predictions-list');
-  const visibleMatches = STATE.matches.filter(m => !m.hidden && m.match_no >= 73 && m.match_no <= 104);
+  const visibleMatches = STATE.matches.filter(m => !m.hidden && m.match_no >= 89 && m.match_no <= 104);
   
   visibleMatches.forEach(m => {
     const pred = user.predictions[m.match_no];
@@ -6929,35 +6911,6 @@ function generateUserAuditText(user) {
   
   text += matchReport;
   
-  // B. Group Leaders (Removed for Knockout Stage)
-  let groupReport = `--- 2. LÍDERES DE GRUPO ---\n  - Sección desactivada para la Fase Final (0 PTS)\n\n`;
-  text += groupReport;
-  
-  // C. Badges
-  let badgesReport = `--- 3. INSIGNIAS (BADGES) ---\n`;
-  let badgesPoints = 0;
-  
-  if (exactsCount >= 3) {
-    badgesReport += `  - OJO CLÍNICO (+15 PTS) [Activo: ${exactsCount} exactos (Requisito: 3+)]\n`;
-    badgesPoints += 15;
-  } else {
-    badgesReport += `  - OJO CLÍNICO (0 PTS) [Inactivo: ${exactsCount} exactos (Requisito: 3+)]\n`;
-  }
-  
-  if (winnerCount >= 7) {
-    badgesReport += `  - GANADOR FRECUENTE (+10 PTS) [Activo: ${winnerCount} aciertos (Requisito: 7+)]\n`;
-    badgesPoints += 10;
-  } else {
-    badgesReport += `  - GANADOR FRECUENTE (0 PTS) [Inactivo: ${winnerCount} aciertos (Requisito: 7+)]\n`;
-  }
-  
-  if (predictionsCount >= 12) {
-    badgesReport += `  - PRONOSTICADOR ACTIVO (+5 PTS) [Activo: ${predictionsCount} pronósticos (Requisito: 12+)]\n`;
-    badgesPoints += 5;
-  } else {
-    badgesReport += `  - PRONOSTICADOR ACTIVO (0 PTS) [Inactivo: ${predictionsCount} pronósticos (Requisito: 12+)]\n`;
-  }
-  
   // Check El Vidente
   const userChamp = user.special_predictions && user.special_predictions.champion;
   const userSubchamp = user.special_predictions && user.special_predictions.subchampion;
@@ -7005,6 +6958,53 @@ function generateUserAuditText(user) {
                      userSubchamp && userSubchamp === actualSubchamp &&
                      userThird && userThird === actualThird;
 
+  // B. Special Predictions / Honor Roll (Podium)
+  const champName = userChamp ? getTeamNameById(userChamp) : "Sin selección";
+  const subchampName = userSubchamp ? getTeamNameById(userSubchamp) : "Sin selección";
+  const thirdName = userThird ? getTeamNameById(userThird) : "Sin selección";
+
+  let groupReport = `--- 2. CUADRO DE HONOR (EL VIDENTE) ---\n`;
+  groupReport += `  - Campeón Pronosticado: ${champName}\n`;
+  groupReport += `  - Subcampeón Pronosticado: ${subchampName}\n`;
+  groupReport += `  - 3er Lugar Pronosticado: ${thirdName}\n`;
+  
+  const realChampName = actualChamp ? getTeamNameById(actualChamp) : null;
+  const realSubchampName = actualSubchamp ? getTeamNameById(actualSubchamp) : null;
+  const realThirdName = actualThird ? getTeamNameById(actualThird) : null;
+
+  if (realChampName && realSubchampName && realThirdName) {
+    groupReport += `  - Podio Real: 1° ${realChampName}, 2° ${realSubchampName}, 3° ${realThirdName}\n`;
+    groupReport += `  - Estado: ${hasVidente ? '¡Acertado completo! 🎉' : 'No acertado'}\n\n`;
+  } else {
+    groupReport += `  - Estado: Pendiente por jugar (en juego)\n\n`;
+  }
+  text += groupReport;
+  
+  // C. Badges
+  let badgesReport = `--- 3. INSIGNIAS (BADGES) ---\n`;
+  let badgesPoints = 0;
+  
+  if (exactsCount >= 3) {
+    badgesReport += `  - OJO CLÍNICO (+15 PTS) [Activo: ${exactsCount} exactos (Requisito: 3+)]\n`;
+    badgesPoints += 15;
+  } else {
+    badgesReport += `  - OJO CLÍNICO (0 PTS) [Inactivo: ${exactsCount} exactos (Requisito: 3+)]\n`;
+  }
+  
+  if (winnerCount >= 7) {
+    badgesReport += `  - GANADOR FRECUENTE (+10 PTS) [Activo: ${winnerCount} aciertos (Requisito: 7+)]\n`;
+    badgesPoints += 10;
+  } else {
+    badgesReport += `  - GANADOR FRECUENTE (0 PTS) [Inactivo: ${winnerCount} aciertos (Requisito: 7+)]\n`;
+  }
+  
+  if (predictionsCount >= 12) {
+    badgesReport += `  - PRONOSTICADOR ACTIVO (+5 PTS) [Activo: ${predictionsCount} pronósticos (Requisito: 12+)]\n`;
+    badgesPoints += 5;
+  } else {
+    badgesReport += `  - PRONOSTICADOR ACTIVO (0 PTS) [Inactivo: ${predictionsCount} pronósticos (Requisito: 12+)]\n`;
+  }
+  
   if (hasVidente) {
     badgesReport += `  - EL VIDENTE (+20 PTS) [Activo: Podio Completo Acertado]\n`;
     badgesPoints += 20;
@@ -7024,7 +7024,7 @@ function generateUserAuditText(user) {
   text += `   RESUMEN TOTAL DE CÓMPUTO AUDITABLE\n`;
   text += `=========================================\n`;
   text += `PUNTOS ACUMULADOS EN PARTIDOS:  ${totalPoints - groupLeadersPoints - badgesPoints} PTS\n`;
-  text += `PUNTOS ACUMULADOS EN LÍDERES:   ${groupLeadersPoints} PTS\n`;
+  text += `PUNTOS ACUMULADOS EN LÍDERES:   0 PTS (Sección Desactivada)\n`;
   text += `PUNTOS ACUMULADOS EN INSIGNIAS:  ${badgesPoints} PTS\n`;
   text += `-----------------------------------------\n`;
   text += `PUNTAJE GENERAL CALCULADO:      ${totalPoints} PTS\n`;
