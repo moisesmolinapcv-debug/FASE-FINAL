@@ -1794,10 +1794,14 @@ function toggleEditLock(matchNo) {
   if (!homeInput || !awayInput) return;
   const currentlyDisabled = homeInput.disabled;
 
+  // ponytail: Find advancing radio buttons for draw matches and toggle their disabled state as well
+  const radios = document.getElementsByName(`et-winner-${matchNo}`);
+
   if (currentlyDisabled) {
     // UNLOCK for editing
     homeInput.disabled = false;
     awayInput.disabled = false;
+    radios.forEach(r => r.disabled = false);
     homeInput.focus();
     if (chipRow) {
       const chip = chipRow.querySelector('.lock-saved-chip');
@@ -1812,6 +1816,7 @@ function toggleEditLock(matchNo) {
     // RE-LOCK
     homeInput.disabled = true;
     awayInput.disabled = true;
+    radios.forEach(r => r.disabled = true);
     if (chipRow) {
       const chip = chipRow.querySelector('.lock-saved-chip');
       if (chip) {
