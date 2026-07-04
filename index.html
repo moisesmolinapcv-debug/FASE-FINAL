@@ -379,8 +379,6 @@
 
     <!-- SECTION 4: CUADRO OFICIAL (BRACKET TREE) -->
     <section id="grupos" class="app-section">
-      <!-- Subtle floating exit button for horizontal/fullscreen view (ponytail: minimal layout footprint) -->
-      <button id="btn-exit-fullscreen-subtle" class="btn-exit-fullscreen-subtle" onclick="toggleFullscreenBracket()" title="Salir de vista horizontal">✕</button>
       
       <div class="glass-card">
         <h2 style="font-size:22px; margin-bottom:6px; color:var(--accent);">CUADRO OFICIAL MUNDIAL 2026</h2>
@@ -393,10 +391,6 @@
           <button class="btn-bracket-filter" id="btn-bracket-QF" onclick="setBracketFilter('QF')">Cuartos de Final</button>
           <button class="btn-bracket-filter" id="btn-bracket-SF" onclick="setBracketFilter('SF')">Semifinales</button>
           <button class="btn-bracket-filter" id="btn-bracket-final" onclick="setBracketFilter('final')">Finales</button>
-          <button id="btn-fullscreen-bracket" class="btn-bracket-filter" onclick="toggleFullscreenBracket()" style="border-color: var(--accent); color: var(--accent); display: none; align-items: center; gap: 6px;">
-            <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
-            VISTA HORIZONTAL
-          </button>
         </div>
         
         <div class="groups-container-grid" id="groups-grid-container">
