@@ -1098,6 +1098,7 @@ async function initDatabase() {
             if (profile) {
               STATE.currentUser = profile;
               STATE.adminMode = profile.is_admin || profile.cedula === 'V-12345678';
+              STATE.dateFilterPopulated = false; // Reset date filter to populate based on role
               recalculateAllPoints(); // Recalculate local stats immediately
               renderApp();
               checkOnboardingTutorial();
@@ -1122,6 +1123,7 @@ async function initDatabase() {
       } else {
         STATE.currentUser = null;
         STATE.adminMode = false;
+        STATE.dateFilterPopulated = false; // Reset date filter to populate based on role
         renderApp();
       }
     });
@@ -1284,8 +1286,8 @@ function recalculateAllPoints() {
     // D. Gamification badges
     let badges = [];
     if (exactsCount >= 3) badges.push("Ojo Clínico");
-    if (winnerCount >= 7) badges.push("Ganador Frecuente");
-    if (predictionsCount >= 12) badges.push("Pronosticador Activo");
+    if (winnerCount >= 5) badges.push("Ganador Frecuente");
+    if (predictionsCount >= 8) badges.push("Pronosticador Activo");
     
     // Check for "El Vidente" badge
     const userChamp = user.special_predictions && user.special_predictions.champion;
@@ -1475,9 +1477,9 @@ function isSpecialPredictionsLocked() {
   return getCurrentTime() >= deadlineMs;
 }
 
-// Check if El Vidente specials are locked (July 9, 2026, 4:00 PM VET)
+// Check if El Vidente specials are locked (July 14, 2026, 3:00 PM VET - Kickoff SF1)
 function isVidentePredictionsLocked() {
-  const deadlineMs = new Date("2026-07-09T16:00:00-04:00").getTime();
+  const deadlineMs = new Date("2026-07-14T15:00:00-04:00").getTime();
   return getCurrentTime() >= deadlineMs;
 }
 
@@ -1622,9 +1624,9 @@ async function saveUserPrediction(matchNo, homeScoreVal, awayScoreVal, extraTime
     return;
   }
   
-  // Restrict to match range #73 to #104 for non-admin users
+  // Restrict to match range #97 to #104 for non-admin users (Quarterfinals onwards)
   const isAdminUser = STATE.currentUser && STATE.currentUser.is_admin;
-  if (!isAdminUser && (matchNo < 89 || matchNo > 104)) {
+  if (!isAdminUser && (matchNo < 97 || matchNo > 104)) {
     showToast("ESTE PARTIDO NO ESTÁ DISPONIBLE PARA PRONÓSTICOS.", "error");
     return;
   }
@@ -1800,9 +1802,9 @@ async function toggleWildcard(matchNo) {
     return;
   }
   
-  // Restrict to match range #73 to #104 for non-admin users (Knockout Stage)
+  // Restrict to match range #97 to #104 for non-admin users (Quarterfinals onwards)
   const isAdminUser = STATE.currentUser && STATE.currentUser.is_admin;
-  if (!isAdminUser && (matchNo < 89 || matchNo > 104)) {
+  if (!isAdminUser && (matchNo < 97 || matchNo > 104)) {
     showToast("ESTE PARTIDO NO ESTÁ DISPONIBLE PARA EL COMODÍN.", "error");
     return;
   }
@@ -1826,7 +1828,7 @@ async function toggleWildcard(matchNo) {
     // Count how many wildcards are already active (only on unlocked knockout matches)
     let activeCount = 0;
     STATE.matches.forEach(m => {
-      if (!isMatchLocked(m) && m.match_no >= 89) {
+      if (!isMatchLocked(m) && m.match_no >= 97) {
         const pred = STATE.currentUser.predictions[m.match_no];
         if (pred && pred.wildcard) {
           activeCount++;
@@ -2484,7 +2486,7 @@ function openTicketModal(user) {
   container.innerHTML = "";
   
   STATE.matches.forEach(m => {
-    if (m.match_no < 89 || m.match_no > 104) return;
+    if (m.match_no < 97 || m.match_no > 104) return;
     const pred = user.predictions[m.match_no];
     let predText = "Sin pronóstico";
     let wildcardHTML = "";
@@ -3574,7 +3576,7 @@ async function openVSModal(cedulaB) {
   container.innerHTML = "";
   
   const isAdminUser = STATE.currentUser && STATE.currentUser.is_admin;
-  const visibleMatches = STATE.matches.filter(m => !m.hidden && (isAdminUser || (m.match_no >= 89 && m.match_no <= 104)));
+  const visibleMatches = STATE.matches.filter(m => !m.hidden && (isAdminUser || (m.match_no >= 97 && m.match_no <= 104)));
   visibleMatches.forEach((m, index) => {
     const predA = userA.predictions[m.match_no];
     const predB = userB.predictions[m.match_no];
@@ -3855,8 +3857,8 @@ function renderDashboardView() {
   const badgesContainer = document.getElementById('dash-badges-container');
   const allAvailableBadges = [
     { id: "Ojo Clínico", icon: "👁️", desc: "Acertar 3 marcadores exactos" },
-    { id: "Ganador Frecuente", icon: "🏆", desc: "Acertar más de 6 ganadores simples (1X2)" },
-    { id: "Pronosticador Activo", icon: "⚡", desc: "Pronosticar más de 12 juegos" },
+    { id: "Ganador Frecuente", icon: "🏆", desc: "Acertar 5 o más ganadores simples (1X2)" },
+    { id: "Pronosticador Activo", icon: "⚡", desc: "Pronosticar todos los juegos (8 juegos de 4tos en adelante)" },
     { id: "El Vidente", icon: "🧙", desc: "Acertar el podio exacto: Campeón, Subcampeón y Tercero de la Copa" },
     { id: "HAT-TRICK VIP", icon: "👑", desc: "Requisitos: 3 tickets en Parley VIP de al menos 3 jugadas cada ticket y sin repetir los logros (TODOS DEBEN SER JUEGOS DEL MUNDIAL)" }
   ];
@@ -3957,7 +3959,7 @@ function renderMatchesView() {
   // Hide hidden matches for non-admin users and restrict user predictions list to range 73-104
   const isAdminUser = STATE.currentUser && STATE.currentUser.is_admin;
   if (!isAdminUser) {
-    filtered = filtered.filter(m => !m.hidden && m.match_no >= 89 && m.match_no <= 104);
+    filtered = filtered.filter(m => !m.hidden && m.match_no >= 97 && m.match_no <= 104);
   }
 
   if (activeMatchSubTab === 'group') {
@@ -4175,14 +4177,8 @@ function renderSpecialPredictionsView() {
   
   const videnteLocked = isVidentePredictionsLocked();
   
-  // Get the 16 qualified teams from the R16 matches (to restrict selection options for El Vidente)
-  const activeTeamCodes = new Set();
-  STATE.matches.forEach(m => {
-    if (m.stage === 'R16') {
-      if (m.home_code) activeTeamCodes.add(m.home_code);
-      if (m.away_code) activeTeamCodes.add(m.away_code);
-    }
-  });
+  // Restricted selection options for El Vidente: only the 8 teams currently active in Quarterfinals
+  const activeTeamCodes = new Set(['J1', 'I1', 'L1', 'I4', 'B4', 'C2', 'H1', 'G1']);
 
   const allTeamsList = [];
   Object.values(STATE.groups).forEach(teamList => {
@@ -4239,12 +4235,12 @@ function renderSpecialPredictionsView() {
   videnteCard.innerHTML = `
     <h3 style="margin-bottom:12px; color:var(--accent);">CUADRO DE HONOR: EL VIDENTE DE LA COPA</h3>
     <p style="font-size:13px; color:var(--text-secondary); margin-bottom:20px; line-height: 1.6;">
-      Pronostica los tres primeros lugares de la Copa del Mundo 2026 antes del inicio de los Cuartos de Final.
+      Pronostica los tres primeros lugares de la Copa del Mundo 2026 antes del inicio de las Semifinales.
       <br><br>
       🎯 <strong>¿Cómo sumas puntos?</strong>
       <br>• <strong>Insignia El Vidente:</strong> Si aciertas los tres puestos exactamente (Campeón, Subcampeón y Tercer Puesto) consigues <strong>+20 PTS</strong>.
       <br><br>
-      🔒 <strong>Cierre de Predicciones:</strong> Esta sección se bloqueará estrictamente el <strong>9 de julio de 2026 a las 4:00 PM (Hora de Venezuela)</strong> (kickoff del primer partido de cuartos).
+      🔒 <strong>Cierre de Predicciones:</strong> Esta sección se bloqueará estrictamente el <strong>14 de julio de 2026 a las 3:00 PM (Hora de Venezuela)</strong>.
       ${videnteLocked ? '<br><span class="lockout-badge" style="margin-top:6px; display:inline-block; padding:3px 8px; background:rgba(244,67,54,0.2); border:1px solid #f44336; border-radius:4px; font-size:10px; color:#f44336; font-weight:800;">🔒 PREDICCIONES CERRADAS</span>' : ''}
     </p>
     <div class="special-pred-card" style="margin-bottom:0">
@@ -6154,7 +6150,7 @@ function renderSharedTicketView(user) {
   container.appendChild(listCard);
   
   const listContainer = listCard.querySelector('#shared-predictions-list');
-  const visibleMatches = STATE.matches.filter(m => !m.hidden && m.match_no >= 89 && m.match_no <= 104);
+  const visibleMatches = STATE.matches.filter(m => !m.hidden && m.match_no >= 97 && m.match_no <= 104);
   
   visibleMatches.forEach(m => {
     const pred = user.predictions[m.match_no];
@@ -6596,18 +6592,18 @@ function generateUserAuditText(user) {
     badgesReport += `  - OJO CLÍNICO (0 PTS) [Inactivo: ${exactsCount} exactos (Requisito: 3+)]\n`;
   }
   
-  if (winnerCount >= 7) {
-    badgesReport += `  - GANADOR FRECUENTE (+10 PTS) [Activo: ${winnerCount} aciertos (Requisito: 7+)]\n`;
+  if (winnerCount >= 5) {
+    badgesReport += `  - GANADOR FRECUENTE (+10 PTS) [Activo: ${winnerCount} aciertos (Requisito: 5+)]\n`;
     badgesPoints += 10;
   } else {
-    badgesReport += `  - GANADOR FRECUENTE (0 PTS) [Inactivo: ${winnerCount} aciertos (Requisito: 7+)]\n`;
+    badgesReport += `  - GANADOR FRECUENTE (0 PTS) [Inactivo: ${winnerCount} aciertos (Requisito: 5+)]\n`;
   }
   
-  if (predictionsCount >= 12) {
-    badgesReport += `  - PRONOSTICADOR ACTIVO (+5 PTS) [Activo: ${predictionsCount} pronósticos (Requisito: 12+)]\n`;
+  if (predictionsCount >= 8) {
+    badgesReport += `  - PRONOSTICADOR ACTIVO (+5 PTS) [Activo: ${predictionsCount} pronósticos (Requisito: 8)]\n`;
     badgesPoints += 5;
   } else {
-    badgesReport += `  - PRONOSTICADOR ACTIVO (0 PTS) [Inactivo: ${predictionsCount} pronósticos (Requisito: 12+)]\n`;
+    badgesReport += `  - PRONOSTICADOR ACTIVO (0 PTS) [Inactivo: ${predictionsCount} pronósticos (Requisito: 8)]\n`;
   }
   
   if (hasVidente) {
@@ -6838,6 +6834,12 @@ function populateMatchDateFilter() {
   
   STATE.matches.forEach(m => {
     if (m.stage !== 'group' && m.date) {
+      // For regular users, only show dates of matches they are allowed to predict/view (97-104)
+      if (!isAdmin) {
+        if (m.match_no < 97 || m.match_no > 104) {
+          return;
+        }
+      }
       const datePart = m.date.split(' ')[0]; // YYYY-MM-DD
       if (!uniqueDates.includes(datePart)) {
         uniqueDates.push(datePart);
